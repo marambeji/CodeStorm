@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0B1120" />
+    <meta name="description" content="EcoNexus : l'IA au service de l'eau, de l'énergie et de l'agriculture, sans capteur à installer." />
+    <title>EcoNexus</title>
+    <!-- Applique le thème mémorisé AVANT l'affichage, pour éviter un flash de la mauvaise couleur -->
+    <script>
+      try {
+        if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark')
+      } catch (e) {}
+      document.documentElement.style.colorScheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

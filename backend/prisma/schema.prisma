@@ -1,0 +1,160 @@
+// Schéma Prisma d'EcoNexus.
+// Chaque "model" devient une table SQLite. Après modification :
+//   npm run db:migrate   (crée/applique une migration + régénère le client)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ───── Module 1 : PlantDoc (Agriculture) ─────
+model PlantDiagnosis {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  parcel     String // nom de la parcelle (ex : "Parcelle Nord")
+  crop       String // culture : tomate, pomme-de-terre, vigne...
+  diseaseKey String // identifiant de la maladie (base de connaissances, ex : "tomate-mildiou")
+  disease    String // nom lisible (ou "Plante saine")
+  confidence Float // 0 → 1, donné par le modèle de vision
+  severity   String // "aucune" | "faible" | "moyenne" | "élevée"
+  advice     String // conseil de traitement en langage simple (IA)
+  tips       String // conseils complémentaires, JSON (liste de textes)
+  status     String   @default("a-traiter") // "a-traiter" | "en-cours" | "traite"
+  notes      String?
+  imageUrl   String?
+  details    String? // analyse détaillée de l'IA (JSON) : maladie hors catalogue, symptômes observés, alternatives
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ───── IrriPlan (Eau · Énergie · Agriculture) ─────
+// Planning d'irrigation sur 7 jours, calculé (méthode FAO-56) à partir de la météo réelle.
+model IrrigationPlan {
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  name         String
+  terrainId    String? // terrain TerraCalc d'origine (facultatif)
+  speciesId    String
+  areaM2       Float
+  trees        Int? // nombre d'arbres (null pour une culture annuelle)
+  lat          Float
+  lng          Float
+  irrigation   String // "goutte-a-goutte" | "aspersion" | "gravitaire"
+  plantingYear Int?
+  pumpHeadM    Float    @default(30) // hauteur de pompage (m), pour l'énergie
+  kwhPrice     Float    @default(0.25) // prix du kWh (€)
+  plan         String // plan calculé + conseils IA, en JSON (jours, volumes, énergie…)
+  doneDays     String   @default("[]") // dates (AAAA-MM-JJ) où l'irrigation a été faite, JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ───── Module 4 : AquaScan (Eau) ─────
+model Meter {
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String         @id @default(cuid())
+  name      String // ex : "Compteur maison"
+  location  String?
+  readings  MeterReading[]
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+}
+
+model MeterReading {
+  id            String   @id @default(cuid())
+  meter         Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  meterId       String
+  value         Float // index du compteur en m³
+  readAt        DateTime // date du relevé
+  source        String   @default("ocr") // "ocr" | "manuel"
+  ocrConfidence Float? // confiance de la lecture automatique (0 → 1)
+  note          String?
+  photoUrl      String? // photo du compteur (si relevé par photo)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ───── Module 5 : TerraCalc (Agriculture) ─────
+
+// Table de référence agronomique (remplie par le seed). Valeurs indicatives moyennes.
+model Species {
+  id                      String    @id // slug lisible : "olivier", "palmier-dattier"...
+  name                    String
+  kind                    String // "tree" (arbre / vigne) | "crop" (culture annuelle)
+  description             String
+  climate                 String // climat adapté
+  droughtTolerance        String // "faible" | "moyenne" | "élevée"
+  // Arbres : espacement recommandé (m) entre rangs et sur le rang
+  rowSpacingM             Float?
+  treeSpacingM            Float?
+  // Arbres : besoin en eau d'un arbre adulte (m³ / arbre / an)
+  waterM3PerTreeYear      Float?
+  firstProductionAge      Int? // âge de la première récolte (ans)
+  fullProductionAge       Int? // âge de pleine production (ans)
+  fullYieldKgPerTree      Float? // rendement d'un arbre en pleine production (kg / an)
+  lifespanYears           Int?
+  plantCostEur            Float? // prix d'un plant
+  maintenanceEurPerTreeYr Float?
+  co2KgPerTreeYear        Float? // CO2 absorbé par un arbre adulte
+  // Cultures annuelles : valeurs par hectare
+  yieldKgPerHa            Float?
+  waterM3PerHaYear        Float?
+  costEurPerHa            Float? // coût d'une campagne (semences, travail du sol...)
+  co2KgPerHaYear          Float?
+  pricePerKgEur           Float // prix de vente moyen, modifiable par l'utilisateur
+  terrains                Terrain[]
+}
+
+model Terrain {
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  name         String
+  polygon      String // GeoJSON Polygon, stocké en texte JSON
+  areaM2       Float
+  perimeterM   Float
+  centroidLat  Float
+  centroidLng  Float
+  species      Species? @relation(fields: [speciesId], references: [id])
+  speciesId    String?
+  plantingYear Int? // null = terrain vide, plantation future
+  rowSpacingM  Float?
+  treeSpacingM Float?
+  irrigation   String? // "goutte-a-goutte" | "aspersion" | "gravitaire" | "pluvial"
+  pricePerKg   Float? // prix personnalisé (sinon celui de l'espèce)
+  estimate     String? // dernière estimation calculée, en JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ───── Comptes : chaque agriculteur a ses propres données ─────
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  farmName     String?
+  placeName    String?
+  lat          Float?
+  lng          Float?
+  createdAt    DateTime @default(now())
+
+  terrains  Terrain[]
+  diagnoses PlantDiagnosis[]
+  plans     IrrigationPlan[]
+  meters    Meter[]
+}

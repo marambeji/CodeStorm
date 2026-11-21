@@ -1,0 +1,29 @@
+# Dépendances et builds
+node_modules/
+dist/
+frontend/out/
+
+# Secrets et configuration locale (copier .env.example en .env)
+.env
+
+# Base SQLite locale (recréée par : npm run setup)
+*.db
+*.db-journal
+
+# Fichiers envoyés par les utilisateurs (photos, factures PDF)
+backend/uploads/
+
+# Code généré automatiquement (npm install lance prisma generate)
+backend/src/generated/
+
+# Fichiers d'assistants de code (ajoutés par les CLI NestJS / Prisma)
+.claude/
+.agents/
+.windsurf/
+CLAUDE.md
+AGENTS.md
+skills-lock.json
+
+# Divers
+.DS_Store
+*.log
