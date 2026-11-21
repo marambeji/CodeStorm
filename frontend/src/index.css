@@ -1,0 +1,350 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+/* Police servie en local (fonctionne hors connexion) */
+@import "@fontsource-variable/plus-jakarta-sans";
+/* Police arabe (Plus Jakarta Sans ne contient pas l'alphabet arabe) */
+@import "@fontsource-variable/noto-sans-arabic";
+
+/* Le mode sombre est piloté par la classe .dark posée sur <html> (next-themes) */
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════
+   1. TOKENS EXPOSÉS À TAILWIND
+   Chaque --color-xxx devient utilisable en classe : bg-xxx, text-xxx...
+   ═══════════════════════════════════════════════════════════════════ */
+@theme inline {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+
+  /* Couleurs des 3 thématiques.
+     - leaf / water / energy : couleur de marque (remplissages, icônes, graphiques)
+     - *-fg : version lisible pour du TEXTE (plus foncée en clair, plus claire en sombre) */
+  --color-leaf: #10b981;
+  --color-water: #0ea5e9;
+  --color-energy: #f59e0b;
+  --color-leaf-fg: var(--leaf-fg);
+  --color-water-fg: var(--water-fg);
+  --color-energy-fg: var(--energy-fg);
+
+  /* Couleur du module courant (changée par le layout selon la page) */
+  --color-module: var(--module, #0ea5e9);
+
+  /* Surfaces "verre" */
+  --color-glass: var(--glass);
+  --color-glass-strong: var(--glass-strong);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   2. THÈME CLAIR
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --radius: 0.75rem;
+
+  --background: #f5f7fb;
+  --foreground: #0b1120;
+  --card: rgb(255 255 255 / 0.72);
+  --card-foreground: #0b1120;
+  --popover: #ffffff;
+  --popover-foreground: #0b1120;
+  --primary: #0b1120;
+  --primary-foreground: #f5f7fb;
+  --secondary: #e9edf4;
+  --secondary-foreground: #0b1120;
+  --muted: #eceff5;
+  --muted-foreground: #556178; /* contraste 5.6:1 sur le fond */
+  --accent: #e6ebf3;
+  --accent-foreground: #0b1120;
+  --destructive: #dc2626;
+  --border: rgb(15 23 42 / 0.1);
+  --input: rgb(15 23 42 / 0.14);
+  --ring: #0284c7;
+
+  --leaf-fg: #047857;
+  --water-fg: #0369a1;
+  --energy-fg: #b45309;
+
+  --glass: rgb(255 255 255 / 0.62);
+  --glass-strong: rgb(255 255 255 / 0.85);
+
+  --chart-1: #10b981;
+  --chart-2: #0ea5e9;
+  --chart-3: #f59e0b;
+  --chart-4: #6366f1;
+  --chart-5: #94a3b8;
+
+  --sidebar: var(--glass);
+  --sidebar-foreground: #0b1120;
+  --sidebar-primary: #0b1120;
+  --sidebar-primary-foreground: #f5f7fb;
+  --sidebar-accent: rgb(15 23 42 / 0.05);
+  --sidebar-accent-foreground: #0b1120;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. THÈME SOMBRE (par défaut)
+   ═══════════════════════════════════════════════════════════════════ */
+.dark {
+  --background: #0b1120;
+  --foreground: #e7ecf5;
+  --card: rgb(148 163 184 / 0.05);
+  --card-foreground: #e7ecf5;
+  --popover: #111a2e;
+  --popover-foreground: #e7ecf5;
+  --primary: #e7ecf5;
+  --primary-foreground: #0b1120;
+  --secondary: #17213a;
+  --secondary-foreground: #e7ecf5;
+  --muted: #141d33;
+  --muted-foreground: #8d9ab3; /* contraste 6.6:1 sur le fond */
+  --accent: #18233d;
+  --accent-foreground: #e7ecf5;
+  --destructive: #f87171;
+  --border: rgb(148 163 184 / 0.13);
+  --input: rgb(148 163 184 / 0.2);
+  --ring: #38bdf8;
+
+  --leaf-fg: #34d399;
+  --water-fg: #38bdf8;
+  --energy-fg: #fbbf24;
+
+  --glass: rgb(11 17 32 / 0.55);
+  --glass-strong: rgb(17 26 46 / 0.82);
+
+  --sidebar: var(--glass);
+  --sidebar-foreground: #e7ecf5;
+  --sidebar-primary: #e7ecf5;
+  --sidebar-primary-foreground: #0b1120;
+  --sidebar-accent: rgb(148 163 184 / 0.08);
+  --sidebar-accent-foreground: #e7ecf5;
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   4. STYLES DE BASE
+   ═══════════════════════════════════════════════════════════════════ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply min-h-svh bg-background text-foreground;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3, h4 {
+    @apply font-heading text-balance;
+    letter-spacing: -0.025em;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Focus clavier bien visible partout */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-module) 30%, transparent);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   5. UTILITAIRES MAISON
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Panneau en verre dépoli : uniquement pour les éléments "flottants" */
+@utility glass {
+  background-color: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Chiffres à largeur fixe : les compteurs ne "sautent" pas */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Liseré lumineux en haut d'une carte (reflet du verre) */
+@utility edge-light {
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
+/* Les utilisateurs qui préfèrent moins d'animations n'ont pas de flou animé */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. ANIMATIONS (utilisables en classes : animate-aurora, animate-sheen…)
+   Toutes sont coupées si l'utilisateur préfère réduire les animations.
+   ═══════════════════════════════════════════════════════════════════ */
+@theme {
+  --animate-aurora-1: aurora-1 22s ease-in-out infinite alternate;
+  --animate-aurora-2: aurora-2 28s ease-in-out infinite alternate;
+  --animate-aurora-3: aurora-3 25s ease-in-out infinite alternate;
+  --animate-grid-pan: grid-pan 40s linear infinite;
+  --animate-gradient-pan: gradient-pan 6s linear infinite;
+  --animate-spin-slow: spin 5s linear infinite;
+  --animate-scan: scan 2.8s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-ping-slow: ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+  @keyframes aurora-1 {
+    0% { transform: translate(0, 0) scale(1) rotate(0deg); }
+    100% { transform: translate(12%, 8%) scale(1.15) rotate(12deg); }
+  }
+  @keyframes aurora-2 {
+    0% { transform: translate(0, 0) scale(1.1); }
+    100% { transform: translate(-14%, 10%) scale(0.9); }
+  }
+  @keyframes aurora-3 {
+    0% { transform: translate(0, 0) scale(0.95) rotate(0deg); }
+    100% { transform: translate(-6%, -10%) scale(1.2) rotate(-10deg); }
+  }
+  @keyframes grid-pan {
+    to { background-position: 56px 56px; }
+  }
+  @keyframes gradient-pan {
+    to { background-position: 200% center; }
+  }
+  @keyframes scan {
+    0%, 100% { top: 8%; }
+    50% { top: 88%; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   7. EFFETS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Texte en dégradé animé, une variante par thématique.
+   En clair, les teintes sont plus foncées pour rester lisibles. */
+@utility text-gradient-water {
+  background-image: linear-gradient(90deg, #0284c7, #22d3ee, #0ea5e9, #0284c7);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-gradient-pan);
+}
+@utility text-gradient-energy {
+  background-image: linear-gradient(90deg, #d97706, #fbbf24, #f59e0b, #d97706);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-gradient-pan);
+}
+@utility text-gradient-leaf {
+  background-image: linear-gradient(90deg, #059669, #34d399, #10b981, #059669);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: var(--animate-gradient-pan);
+}
+:root:not(.dark) .text-gradient-water { background-image: linear-gradient(90deg, #075985, #0284c7, #0369a1, #075985); }
+:root:not(.dark) .text-gradient-energy { background-image: linear-gradient(90deg, #92400e, #d97706, #b45309, #92400e); }
+:root:not(.dark) .text-gradient-leaf { background-image: linear-gradient(90deg, #065f46, #059669, #047857, #065f46); }
+
+/* Grain photographique (SVG feTurbulence) : casse l'aspect "plat" des aplats */
+@utility noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Grille fine (lignes de 1px tous les 56px) */
+@utility grid-lines {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+:root {
+  --grid-line: rgb(15 23 42 / 0.06);
+  --spotlight: rgb(14 165 233 / 0.1);
+  --noise-opacity: 0.035;
+  --aurora-opacity: 0.32;
+  --shadow-float: 0 1px 1px rgb(15 23 42 / 0.04), 0 12px 32px -12px rgb(15 23 42 / 0.18), 0 40px 80px -40px rgb(15 23 42 / 0.2);
+}
+.dark {
+  --grid-line: rgb(148 163 184 / 0.07);
+  --spotlight: rgb(148 163 184 / 0.08);
+  --noise-opacity: 0.05;
+  --aurora-opacity: 0.35;
+  --shadow-float: 0 1px 1px rgb(0 0 0 / 0.3), 0 20px 50px -20px rgb(0 0 0 / 0.6), 0 50px 100px -40px rgb(2 6 23 / 0.8);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   8. ARABE (lecture de droite à gauche)
+   ═══════════════════════════════════════════════════════════════════ */
+:root:lang(ar) body {
+  font-family: "Noto Sans Arabic Variable", "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+}
+/* L'interlettrage négatif des titres latins abîme l'écriture arabe (lettres liées) */
+:root:lang(ar) * {
+  letter-spacing: 0 !important;
+}

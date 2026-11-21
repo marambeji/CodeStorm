@@ -1,0 +1,140 @@
+// Schéma Prisma d'EcoNexus.
+// Chaque "model" devient une table SQLite. Après modification :
+//   npm run db:migrate   (crée/applique une migration + régénère le client)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ───── Module 1 : PlantDoc (Agriculture) ─────
+model PlantDiagnosis {
+  id         String   @id @default(cuid())
+  parcel     String // nom de la parcelle (ex : "Parcelle Nord")
+  crop       String // culture : tomate, pomme-de-terre, vigne...
+  diseaseKey String // identifiant de la maladie (base de connaissances, ex : "tomate-mildiou")
+  disease    String // nom lisible (ou "Plante saine")
+  confidence Float // 0 → 1, donné par le modèle de vision
+  severity   String // "aucune" | "faible" | "moyenne" | "élevée"
+  advice     String // conseil de traitement en langage simple (IA)
+  tips       String // conseils complémentaires, JSON (liste de textes)
+  status     String   @default("a-traiter") // "a-traiter" | "en-cours" | "traite"
+  notes      String?
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ───── Module 2 : FactureIA (Énergie) ─────
+model Invoice {
+  id             String   @id @default(cuid())
+  label          String // ex : "Facture d'octobre 2026"
+  supplier       String?
+  periodStart    DateTime
+  periodEnd      DateTime
+  kwh            Float // consommation totale
+  hpKwh          Float? // heures pleines
+  hcKwh          Float? // heures creuses
+  amount         Float // montant TTC en €
+  subscriptionKva Float?
+  offer          String   @default("base") // "base" | "hphc"
+  tiers          String // détail du montant par poste, JSON
+  explanation    String // explication simple (IA)
+  tips           String // conseils personnalisés, JSON
+  extraction     String   @default("auto") // "auto" | "partielle" | "manuelle"
+  fileName       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ───── Module 3 : HydroMap (Eau) ─────
+// Les zones et indices viennent d'un "fournisseur de données" (simulé pour la démo,
+// prêt pour Sentinel-2 / Google Earth Engine). Ici : les observations de terrain.
+model HydroObservation {
+  id          String   @id @default(cuid())
+  zoneId      String
+  type        String // "puits" | "irrigation" | "secheresse" | "autre"
+  note        String
+  waterLevelM Float? // profondeur de l'eau dans un puits (m), si mesurée
+  observedAt  DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ───── Module 4 : AquaScan (Eau) ─────
+model Meter {
+  id        String         @id @default(cuid())
+  name      String // ex : "Compteur maison"
+  location  String?
+  readings  MeterReading[]
+  createdAt DateTime       @default(now())
+}
+
+model MeterReading {
+  id            String   @id @default(cuid())
+  meter         Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  meterId       String
+  value         Float // index du compteur en m³
+  readAt        DateTime // date du relevé
+  source        String   @default("ocr") // "ocr" | "manuel"
+  ocrConfidence Float? // confiance de la lecture automatique (0 → 1)
+  note          String?
+  photoUrl      String? // photo du compteur (si relevé par photo)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ───── Module 5 : TerraCalc (Agriculture) ─────
+
+// Table de référence agronomique (remplie par le seed). Valeurs indicatives moyennes.
+model Species {
+  id                       String  @id // slug lisible : "olivier", "palmier-dattier"...
+  name                     String
+  kind                     String // "tree" (arbre / vigne) | "crop" (culture annuelle)
+  description              String
+  climate                  String // climat adapté
+  droughtTolerance         String // "faible" | "moyenne" | "élevée"
+  // Arbres : espacement recommandé (m) entre rangs et sur le rang
+  rowSpacingM              Float?
+  treeSpacingM             Float?
+  // Arbres : besoin en eau d'un arbre adulte (m³ / arbre / an)
+  waterM3PerTreeYear       Float?
+  firstProductionAge       Int? // âge de la première récolte (ans)
+  fullProductionAge        Int? // âge de pleine production (ans)
+  fullYieldKgPerTree       Float? // rendement d'un arbre en pleine production (kg / an)
+  lifespanYears            Int?
+  plantCostEur             Float? // prix d'un plant
+  maintenanceEurPerTreeYr  Float?
+  co2KgPerTreeYear         Float? // CO2 absorbé par un arbre adulte
+  // Cultures annuelles : valeurs par hectare
+  yieldKgPerHa             Float?
+  waterM3PerHaYear         Float?
+  costEurPerHa             Float? // coût d'une campagne (semences, travail du sol...)
+  co2KgPerHaYear           Float?
+  pricePerKgEur            Float // prix de vente moyen, modifiable par l'utilisateur
+  terrains                 Terrain[]
+}
+
+model Terrain {
+  id           String   @id @default(cuid())
+  name         String
+  polygon      String // GeoJSON Polygon, stocké en texte JSON
+  areaM2       Float
+  perimeterM   Float
+  centroidLat  Float
+  centroidLng  Float
+  species      Species? @relation(fields: [speciesId], references: [id])
+  speciesId    String?
+  plantingYear Int? // null = terrain vide, plantation future
+  rowSpacingM  Float?
+  treeSpacingM Float?
+  irrigation   String? // "goutte-a-goutte" | "aspersion" | "gravitaire" | "pluvial"
+  pricePerKg   Float? // prix personnalisé (sinon celui de l'espèce)
+  estimate     String? // dernière estimation calculée, en JSON
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}

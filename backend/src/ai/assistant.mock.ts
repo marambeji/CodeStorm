@@ -1,0 +1,119 @@
+import type { DashboardService } from '../dashboard/dashboard.module.js'
+
+type Summary = Awaited<ReturnType<DashboardService['summary']>>
+type Lang = 'fr' | 'en' | 'ar'
+export interface AssistantReply {
+  reply: string
+  links: { label: string; to: string }[]
+  suggestions: string[]
+  source: 'mock' | 'llm'
+}
+
+const nf = (n: number, lang: Lang) => new Intl.NumberFormat(lang === 'ar' ? 'ar' : lang, { maximumFractionDigits: 0 }).format(n)
+
+/**
+ * Assistant simulé : reconnaît le sujet de la question (mots-clés FR / EN / AR)
+ * et répond avec les VRAIS chiffres de l'application (tableau de bord).
+ */
+export function mockAssistant(question: string, lang: Lang, s: Summary): AssistantReply {
+  const q = question.toLowerCase()
+  const has = (...words: string[]) => words.some((w) => q.includes(w))
+  const T = (fr: string, en: string, ar: string) => (lang === 'en' ? en : lang === 'ar' ? ar : fr)
+  const suggestions = [
+    T('Ai-je une fuite d’eau ?', 'Do I have a water leak?', 'هل يوجد تسرب للمياه؟'),
+    T('Comment baisser ma facture ?', 'How can I lower my bill?', 'كيف أخفض فاتورتي؟'),
+    T('Quelles cultures sont malades ?', 'Which crops are sick?', 'ما هي المحاصيل المريضة؟'),
+    T('Explique mon éco-score', 'Explain my eco-score', 'اشرح مؤشري البيئي'),
+  ]
+  const m = s.modules
+
+  if (has('fuite', 'leak', 'compteur', 'meter', 'تسرب', 'عداد', 'aquascan')) {
+    return {
+      reply: m.aquascan.leaks
+        ? T(
+            `Oui : ${m.aquascan.leaks} compteur signale une fuite possible. La consommation de la dernière période est bien au-dessus de l’habitude. Fermez tous les robinets et vérifiez si le compteur tourne encore pendant 30 minutes.`,
+            `Yes: ${m.aquascan.leaks} meter shows a possible leak. Last period's consumption is well above usual. Close every tap and check whether the meter still moves for 30 minutes.`,
+            `نعم: ${nf(m.aquascan.leaks, lang)} عداد يشير إلى تسرب محتمل. استهلاك الفترة الأخيرة أعلى بكثير من المعتاد. أغلق كل الصنابير وتحقق إن كان العداد يدور خلال 30 دقيقة.`,
+          )
+        : T('Aucune fuite détectée : vos compteurs ont une consommation normale.', 'No leak detected: your meters show normal consumption.', 'لم يتم اكتشاف أي تسرب: استهلاك عداداتك طبيعي.'),
+      links: [{ label: 'AquaScan', to: '/app/aquascan' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  if (has('factur', 'électric', 'electric', 'bill', 'énergie', 'energy', 'kwh', 'فاتور', 'كهرب', 'طاقة')) {
+    const last = m.factureia.last
+    return {
+      reply: last
+        ? T(
+            `Votre dernière facture (${last.label}) s’élève à ${nf(last.amount, lang)} € pour ${nf(last.kwh, lang)} kWh. Pour la baisser : lancez lave-linge et lave-vaisselle la nuit, programmez le chauffe-eau en heures creuses et baissez le chauffage d’un degré. Le simulateur de FactureIA chiffre l’économie.`,
+            `Your last bill (${last.label}) is €${nf(last.amount, lang)} for ${nf(last.kwh, lang)} kWh. To lower it: run the washing machine and dishwasher at night, schedule the water heater during off-peak hours and lower heating by one degree. The FactureIA simulator estimates the savings.`,
+            `آخر فاتورة لديك (${last.label}) قيمتها ${nf(last.amount, lang)} يورو مقابل ${nf(last.kwh, lang)} كيلوواط ساعة. لتخفيضها: شغّل الغسالة وغسالة الصحون ليلاً، وبرمج سخان الماء في ساعات الذروة المنخفضة، واخفض التدفئة درجة واحدة.`,
+          )
+        : T('Aucune facture pour l’instant : déposez-en une dans FactureIA.', 'No bill yet: upload one in FactureIA.', 'لا توجد فاتورة بعد: ارفع واحدة في FactureIA.'),
+      links: [{ label: 'FactureIA', to: '/app/factureia' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  if (has('malad', 'feuille', 'plant', 'culture', 'crop', 'sick', 'disease', 'leaf', 'مرض', 'نبات', 'محصول', 'ورق')) {
+    const sick = m.plantdoc.latest.filter((d) => d.severity !== 'aucune')
+    return {
+      reply: T(
+        `${m.plantdoc.toTreat} diagnostic(s) restent à traiter sur ${m.plantdoc.parcels} parcelles.${sick.length ? ` Les plus récents : ${sick.map((d) => `${d.disease} (${d.parcel})`).join(', ')}.` : ''} Prenez une nouvelle photo dans PlantDoc pour suivre l’évolution.`,
+        `${m.plantdoc.toTreat} diagnosis(es) still need treatment across ${m.plantdoc.parcels} plots.${sick.length ? ` Most recent: ${sick.map((d) => `${d.disease} (${d.parcel})`).join(', ')}.` : ''} Take a new photo in PlantDoc to follow up.`,
+        `${nf(m.plantdoc.toTreat, lang)} تشخيصات تحتاج إلى علاج في ${nf(m.plantdoc.parcels, lang)} قطع أرض. التقط صورة جديدة في PlantDoc لمتابعة التطور.`,
+      ),
+      links: [{ label: 'PlantDoc', to: '/app/plantdoc' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  if (has('stress', 'sécheresse', 'secheresse', 'drought', 'zone', 'nappe', 'hydro', 'جفاف', 'إجهاد', 'منطقة')) {
+    return {
+      reply: T(
+        `Le stress hydrique moyen du territoire est de ${Math.round(m.hydromap.averageStress * 100)} %. La zone la plus touchée est ${m.hydromap.worst.name} (${Math.round(m.hydromap.worst.stress * 100)} %) : priorité à l’eau potable et aux cultures pérennes.`,
+        `The territory's average water stress is ${Math.round(m.hydromap.averageStress * 100)}%. The most affected area is ${m.hydromap.worst.name} (${Math.round(m.hydromap.worst.stress * 100)}%): prioritize drinking water and perennial crops.`,
+        `متوسط الإجهاد المائي في المنطقة هو ${nf(Math.round(m.hydromap.averageStress * 100), lang)}٪. المنطقة الأكثر تضرراً هي ${m.hydromap.worst.name}: الأولوية لمياه الشرب والمحاصيل الدائمة.`,
+      ),
+      links: [{ label: 'HydroMap', to: '/app/hydromap' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  if (has('terrain', 'arbre', 'olivier', 'land', 'tree', 'hectare', 'أرض', 'شجر', 'زيتون')) {
+    return {
+      reply: T(
+        `Vous suivez ${m.terracalc.count} terrains (${nf(m.terracalc.hectares, lang)} ha, ${nf(m.terracalc.trees, lang)} arbres) pour une production estimée de ${nf(m.terracalc.productionKg / 1000, lang)} tonnes par an. Dessinez un nouveau terrain dans TerraCalc pour une estimation.`,
+        `You track ${m.terracalc.count} plots (${nf(m.terracalc.hectares, lang)} ha, ${nf(m.terracalc.trees, lang)} trees) with an estimated production of ${nf(m.terracalc.productionKg / 1000, lang)} tonnes per year. Draw a new plot in TerraCalc for an estimate.`,
+        `تتابع ${nf(m.terracalc.count, lang)} أراضٍ (${nf(m.terracalc.hectares, lang)} هكتار، ${nf(m.terracalc.trees, lang)} شجرة) بإنتاج تقديري ${nf(m.terracalc.productionKg / 1000, lang)} طن سنوياً.`,
+      ),
+      links: [{ label: 'TerraCalc', to: '/app/terracalc' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  if (has('score', 'éco', 'eco', 'bilan', 'résumé', 'summary', 'مؤشر', 'ملخص')) {
+    const weakest = [...s.parts].sort((a, b) => a.score - b.score)[0]
+    return {
+      reply: T(
+        `Votre éco-score est de ${s.ecoScore}/100. Le point le plus faible est « ${weakest.label} » (${weakest.score}/100) : c’est là que vos efforts compteront le plus. ${s.alerts.length} alertes sont en cours.`,
+        `Your eco-score is ${s.ecoScore}/100. The weakest point is "${weakest.label}" (${weakest.score}/100): that's where your efforts will count most. ${s.alerts.length} alerts are active.`,
+        `مؤشرك البيئي هو ${nf(s.ecoScore, lang)}/100. أضعف نقطة هي «${weakest.label}» (${nf(weakest.score, lang)}/100). هناك ${nf(s.alerts.length, lang)} تنبيهات نشطة.`,
+      ),
+      links: [{ label: T('Vue d’ensemble', 'Overview', 'نظرة عامة'), to: '/app' }],
+      suggestions,
+      source: 'mock',
+    }
+  }
+  return {
+    reply: T(
+      'Je suis l’assistant EcoNexus. Je peux vous parler de vos fuites d’eau, de votre facture d’électricité, de la santé de vos cultures, du stress hydrique ou de vos terrains. Que voulez-vous savoir ?',
+      'I’m the EcoNexus assistant. I can tell you about water leaks, your electricity bill, crop health, water stress or your plots. What would you like to know?',
+      'أنا مساعد EcoNexus. يمكنني إخبارك عن تسربات المياه، فاتورة الكهرباء، صحة المحاصيل، الإجهاد المائي أو أراضيك. ماذا تريد أن تعرف؟',
+    ),
+    links: [],
+    suggestions,
+    source: 'mock',
+  }
+}

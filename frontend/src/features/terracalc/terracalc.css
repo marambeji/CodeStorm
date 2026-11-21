@@ -1,0 +1,108 @@
+/* Styles de la carte TerraCalc (Leaflet) accordés au design system */
+
+.terra-map.leaflet-container {
+  background: var(--background);
+  font-family: var(--font-sans);
+}
+.terra-map.is-drawing.leaflet-container,
+.terra-map.is-drawing .leaflet-interactive {
+  cursor: crosshair;
+}
+
+/* Les contrôles Leaflet passent SOUS nos panneaux (z-index 500+) */
+.terra-map .leaflet-top,
+.terra-map .leaflet-bottom {
+  z-index: 450;
+}
+/* Mobile : l'attribution (obligatoire) reste visible juste au-dessus du bottom sheet */
+@media (max-width: 1023px) {
+  .terra-map .leaflet-bottom {
+    bottom: 210px;
+  }
+}
+
+/* Attribution : discrète, en verre dépoli, lisible dans les deux thèmes */
+.terra-map .leaflet-control-attribution {
+  background: var(--glass) !important;
+  color: var(--muted-foreground);
+  backdrop-filter: blur(10px);
+  border-radius: 8px 0 0 0;
+  font-size: 10px;
+  max-width: 70vw;
+}
+.terra-map .leaflet-control-attribution a {
+  color: var(--foreground);
+}
+
+/* Sommets du polygone : zone tactile de 32px, point visible de 14px */
+.tc-vertex {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+}
+.tc-vertex-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  border: 3px solid #10b981;
+  box-shadow: 0 0 0 4px rgb(16 185 129 / 0.25), 0 2px 6px rgb(0 0 0 / 0.35);
+  transition: transform 150ms, background 150ms;
+}
+.tc-vertex:hover .tc-vertex-dot {
+  transform: scale(1.25);
+}
+.tc-vertex-dot.is-selected {
+  background: #f59e0b;
+  border-color: #fff;
+  transform: scale(1.35);
+}
+/* Premier point : il pulse quand on peut fermer le contour en cliquant dessus */
+.tc-vertex-dot.is-closable {
+  animation: tc-pulse 1.4s ease-in-out infinite;
+}
+.tc-midpoint {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.75);
+  border: 2px solid #10b981;
+  opacity: 0.85;
+  transition: transform 150ms;
+}
+.tc-vertex:hover .tc-midpoint {
+  transform: scale(1.4);
+  opacity: 1;
+}
+.tc-user {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #0ea5e9;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgb(14 165 233 / 0.25);
+}
+@keyframes tc-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgb(16 185 129 / 0.35), 0 2px 6px rgb(0 0 0 / 0.35); }
+  50% { box-shadow: 0 0 0 10px rgb(16 185 129 / 0.1), 0 2px 6px rgb(0 0 0 / 0.35); }
+}
+
+@media (pointer: coarse) {
+  .tc-vertex-dot { width: 18px; height: 18px; }
+}
+
+/* Info-bulle des zones HydroMap */
+.hydro-tooltip.leaflet-tooltip {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  font-family: var(--font-sans);
+  padding: 6px 10px;
+}
+.hydro-tooltip.leaflet-tooltip-top::before {
+  border-top-color: var(--popover);
+}
