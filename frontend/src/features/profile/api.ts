@@ -10,7 +10,7 @@ export function useProfile() {
 export function useSaveProfile() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (p: { name: string; farmName?: string; placeName?: string; lat?: number | null; lng?: number | null }) => (await api.put<User>('/auth/me', p)).data,
+    mutationFn: async (p: { name: string; farmName?: string; phone?: string; placeName?: string; lat?: number | null; lng?: number | null }) => (await api.put<User>('/auth/me', p)).data,
     onSuccess: (user) => {
       qc.setQueryData(['me'], user)
       qc.invalidateQueries({ queryKey: ['weather-place'] })

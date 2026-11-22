@@ -1,4 +1,5 @@
-import { Droplets, Gauge, LandPlot, LayoutDashboard, Leaf, type LucideIcon } from 'lucide-react'
+import { Droplets, Gauge, LandPlot, LayoutDashboard, Leaf, Link2, Package, Store, Truck, type LucideIcon } from 'lucide-react'
+import type { Role } from '@/features/auth/auth'
 
 /**
  * Source unique de vérité pour les modules d'EcoNexus.
@@ -88,4 +89,42 @@ export const DASHBOARD = {
 /** Retrouve le module correspondant à une URL (ou undefined pour le dashboard) */
 export function moduleFromPath(pathname: string): ModuleDef | undefined {
   return MODULES.find((m) => pathname.startsWith(m.path))
+}
+
+/**
+ * Pages du marché (de la ferme au client), visibles selon le rôle du compte :
+ * l'agriculteur vend, le client achète, le livreur livre.
+ */
+export interface MarketPage {
+  id: 'boutique' | 'marche' | 'commandes' | 'livraisons'
+  name: string
+  tagline: string
+  path: string
+  icon: LucideIcon
+  tone: Tone
+  roles: Role[]
+}
+
+export const MARKET_PAGES: MarketPage[] = [
+  { id: 'boutique', name: 'Ma boutique', tagline: 'Mettez vos produits en vente et traitez les commandes.', path: '/app/boutique', icon: Store, tone: 'leaf', roles: ['agriculteur'] },
+  { id: 'marche', name: 'Marché', tagline: 'Achetez directement aux agriculteurs.', path: '/app/marche', icon: Store, tone: 'leaf', roles: ['client'] },
+  { id: 'commandes', name: 'Mes commandes', tagline: 'Suivez vos commandes de la ferme jusqu’à chez vous.', path: '/app/commandes', icon: Package, tone: 'energy', roles: ['client'] },
+  { id: 'livraisons', name: 'Livraisons', tagline: 'Récupérez les commandes prêtes et livrez-les.', path: '/app/livraisons', icon: Truck, tone: 'energy', roles: ['livreur'] },
+]
+
+export const marketPagesFor = (role: Role) => MARKET_PAGES.filter((p) => p.roles.includes(role))
+
+/** Traçabilité (récolte → consommateur) : ouverte à tous les rôles */
+export const TRACE_PAGE = {
+  id: 'tracabilite',
+  name: 'Traçabilité',
+  tagline: 'Lots, QR codes, registre blockchain et IA anti-pertes.',
+  path: '/app/tracabilite',
+  icon: Link2,
+  tone: 'leaf' as Tone,
+}
+
+/** Couleur d'accent de la page courante (module ou page du marché) */
+export function toneFromPath(pathname: string): Tone | undefined {
+  return moduleFromPath(pathname)?.tone ?? MARKET_PAGES.find((p) => pathname.startsWith(p.path))?.tone ?? (pathname.startsWith(TRACE_PAGE.path) ? TRACE_PAGE.tone : undefined)
 }

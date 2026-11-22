@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "EcoNexus",
+    "slug": "econexus",
+    "version": "0.1.0",
+    "platforms": ["android", "ios"],
+    "ios": {
+      "bundleIdentifier": "app.econexus.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Photographier les feuilles et les compteurs et scanner les QR codes.",
+        "NSMicrophoneUsageDescription": "Dicter une question à l’assistant EcoNexus.",
+        "NSPhotoLibraryUsageDescription": "Choisir des photos pour les analyses et le marché.",
+        "NSLocationWhenInUseUsageDescription": "Localiser les parcelles, les adresses et les livraisons pendant l’utilisation."
+      }
+    },
+    "android": {
+      "package": "app.econexus.mobile",
+      "permissions": ["CAMERA", "RECORD_AUDIO", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    }
+  }
+}

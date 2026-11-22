@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Droplets, Eye, EyeOff, Gauge, LandPlot, Leaf, Loader2, PlayCircle } from 'lucide-react'
+import { Droplets, Eye, EyeOff, Gauge, LandPlot, Leaf, Loader2, PlayCircle, ShoppingBasket, Store, Tractor, Truck, type LucideIcon } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -8,18 +8,29 @@ import { Aurora, GridBackdrop, Noise } from '@/components/fx/background-fx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuthActions } from '@/features/auth/auth'
+import { useAuthActions, type Role } from '@/features/auth/auth'
 import { apiErrorMessage } from '@/features/terracalc/api'
 import { authToken } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-const DEMO = { email: 'demo@econexus.app', password: 'Demo2026!' }
+const DEMO_PASSWORD = 'Demo2026!'
+const DEMOS: { role: Role; email: string; label: string; icon: LucideIcon }[] = [
+  { role: 'agriculteur', email: 'demo@econexus.app', label: 'Agriculteur', icon: Tractor },
+  { role: 'client', email: 'client@econexus.app', label: 'Client', icon: ShoppingBasket },
+]
+
+const ROLE_CHOICES: { role: Role; label: string; hint: string; icon: LucideIcon }[] = [
+  { role: 'agriculteur', label: 'Agriculteur', hint: 'Je cultive et je vends', icon: Tractor },
+  { role: 'client', label: 'Client', hint: 'J’achète en direct', icon: ShoppingBasket },
+  { role: 'livreur', label: 'Livreur', hint: 'Je livre les commandes', icon: Truck },
+]
 
 const POINTS = [
   { icon: Leaf, text: 'Diagnostic des maladies sur photo de feuille', tone: 'text-leaf-fg bg-leaf/12' },
   { icon: LandPlot, text: 'Estimation de vos terrains depuis le satellite', tone: 'text-leaf-fg bg-leaf/12' },
   { icon: Droplets, text: 'Planning d’irrigation avec la météo réelle', tone: 'text-water-fg bg-water/12' },
   { icon: Gauge, text: 'Relevé du compteur d’eau et alerte de fuite', tone: 'text-water-fg bg-water/12' },
+  { icon: Store, text: 'Vente directe : de la ferme au client, avec livreur', tone: 'text-energy-fg bg-energy/12' },
 ]
 
 /** Connexion / création de compte : chaque agriculteur retrouve ses propres données */
@@ -28,9 +39,10 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const auth = useAuthActions()
   const [mode, setMode] = useState<'login' | 'register'>(params.get('mode') === 'inscription' ? 'register' : 'login')
-  const [form, setForm] = useState({ name: '', farmName: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', farmName: '', email: '', password: '', phone: '' })
+  const [role, setRole] = useState<Role>('agriculteur')
   const [showPwd, setShowPwd] = useState(false)
-  const [pending, setPending] = useState<'form' | 'demo' | null>(null)
+  const [pending, setPending] = useState<'form' | Role | null>(null)
   const [error, setError] = useState<string | null>(null)
   const next = params.get('suite')?.startsWith('/app') ? params.get('suite')! : '/app'
 
@@ -38,7 +50,7 @@ export default function LoginPage() {
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }))
 
-  async function run(kind: 'form' | 'demo', fn: () => Promise<void>, welcome: string) {
+  async function run(kind: 'form' | Role, fn: () => Promise<void>, welcome: string) {
     setError(null)
     setPending(kind)
     try {
@@ -57,7 +69,20 @@ export default function LoginPage() {
       if (form.name.trim().length < 2) return setError('Indiquez votre nom (2 caractères minimum).')
       if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/\d/.test(form.password))
         return setError('Le mot de passe doit faire au moins 8 caractères, avec au moins une lettre et un chiffre.')
-      run('form', () => auth.register({ name: form.name.trim(), email: form.email.trim(), password: form.password, farmName: form.farmName.trim() || undefined }), `Bienvenue ${form.name.trim().split(' ')[0]} !`)
+      if (role !== 'agriculteur' && form.phone.trim() && !/^[+\d][\d\s.-]{5,19}$/.test(form.phone.trim())) return setError('Numéro de téléphone invalide.')
+      run(
+        'form',
+        () =>
+          auth.register({
+            name: form.name.trim(),
+            email: form.email.trim(),
+            password: form.password,
+            role,
+            farmName: role === 'agriculteur' ? form.farmName.trim() || undefined : undefined,
+            phone: form.phone.trim() || undefined,
+          }),
+        `Bienvenue ${form.name.trim().split(' ')[0]} !`,
+      )
     } else {
       run('form', () => auth.login(form.email.trim(), form.password), 'Connexion réussie')
     }
@@ -119,14 +144,45 @@ export default function LoginPage() {
           <form onSubmit={submit} className="space-y-4" noValidate>
             {mode === 'register' && (
               <>
+                <fieldset className="space-y-1.5">
+                  <legend className="mb-1.5 text-sm font-medium">Je suis</legend>
+                  <div role="radiogroup" className="grid grid-cols-3 gap-2">
+                    {ROLE_CHOICES.map((r) => (
+                      <button
+                        key={r.role}
+                        type="button"
+                        role="radio"
+                        aria-checked={role === r.role}
+                        onClick={() => setRole(r.role)}
+                        className={cn(
+                          'flex flex-col items-center gap-1 rounded-xl border px-2 py-3 text-center transition-all',
+                          role === r.role ? 'border-leaf bg-leaf/10 ring-2 ring-leaf/30' : 'bg-background/50 hover:bg-muted',
+                        )}
+                      >
+                        <r.icon className={cn('size-5', role === r.role ? 'text-leaf-fg' : 'text-muted-foreground')} aria-hidden="true" />
+                        <span className="text-sm font-semibold">{r.label}</span>
+                        <span className="text-[0.68rem] leading-tight text-muted-foreground">{r.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
                 <div className="space-y-1.5">
                   <Label htmlFor="lg-name">Votre nom</Label>
                   <Input id="lg-name" value={form.name} onChange={(e) => set('name', e.target.value)} autoComplete="name" placeholder="Ex : Salim Ben Ali" maxLength={40} />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="lg-farm">Exploitation (facultatif)</Label>
-                  <Input id="lg-farm" value={form.farmName} onChange={(e) => set('farmName', e.target.value)} placeholder="Ex : Ferme des Oliviers" maxLength={60} />
-                </div>
+                {role === 'agriculteur' ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lg-farm">Exploitation (facultatif)</Label>
+                    <Input id="lg-farm" value={form.farmName} onChange={(e) => set('farmName', e.target.value)} placeholder="Ex : Ferme des Oliviers" maxLength={60} />
+                    <p className="text-xs text-muted-foreground">C’est le nom que verront vos clients sur le marché.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="lg-phone">Téléphone (facultatif)</Label>
+                    <Input id="lg-phone" type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} autoComplete="tel" placeholder="+216 20 123 456" />
+                    <p className="text-xs text-muted-foreground">{role === 'client' ? 'Pour que le livreur vous prévienne à l’arrivée.' : 'Pour que les fermes et les clients puissent vous joindre.'}</p>
+                  </div>
+                )}
               </>
             )}
             <div className="space-y-1.5">
@@ -170,13 +226,20 @@ export default function LoginPage() {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
           </div>
-          <Button variant="outline" size="lg" className="w-full" disabled={pending !== null} onClick={() => run('demo', () => auth.login(DEMO.email, DEMO.password), 'Compte de démo ouvert')}>
-            {pending === 'demo' ? <Loader2 className="animate-spin" aria-hidden="true" /> : <PlayCircle aria-hidden="true" />}
-            Essayer avec le compte de démo
-          </Button>
-          <p className="text-center text-xs text-muted-foreground">
-            Démo : {DEMO.email} · {DEMO.password}
-          </p>
+          <div className="space-y-2">
+            <p className="flex items-center justify-center gap-1.5 text-sm font-medium">
+              <PlayCircle className="size-4" aria-hidden="true" /> Essayer un compte de démo
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {DEMOS.map((d) => (
+                <Button key={d.role} variant="outline" className="h-auto flex-col gap-1 py-3" disabled={pending !== null} onClick={() => run(d.role, () => auth.login(d.email, DEMO_PASSWORD), `Compte de démo ${d.label.toLowerCase()} ouvert`)}>
+                  {pending === d.role ? <Loader2 className="animate-spin" aria-hidden="true" /> : <d.icon aria-hidden="true" />}
+                  <span className="text-xs">{d.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
+          <p className="text-center text-xs text-muted-foreground">Mot de passe des comptes de démo : {DEMO_PASSWORD}</p>
         </div>
       </main>
     </div>

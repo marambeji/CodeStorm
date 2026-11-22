@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router-dom'
 import { ModuleIcon } from '@/components/common/module-icon'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DASHBOARD, MODULES, toneHex } from '@/lib/modules'
+import { useRole } from '@/features/auth/auth'
+import { DASHBOARD, MODULES, marketPagesFor, toneHex, TRACE_PAGE } from '@/lib/modules'
 import { cn } from '@/lib/utils'
 
 /**
@@ -23,6 +24,59 @@ export function NavLinks({
 }) {
   const { pathname } = useLocation()
   const { t } = useTranslation()
+  const role = useRole()
+  const market = marketPagesFor(role)
+  const marketList = (
+    <ul className="flex flex-col gap-0.5">
+      {market.map((p) => (
+        <li key={p.id}>
+          <NavItem
+            to={p.path}
+            label={p.name}
+            active={pathname.startsWith(p.path)}
+            onNavigate={onNavigate}
+            layoutId={layoutId}
+            accent={toneHex[p.tone]}
+            collapsed={collapsed}
+            icon={<ModuleIcon icon={p.icon} tone={p.tone} size="sm" />}
+          />
+        </li>
+      ))}
+    </ul>
+  )
+
+  // Traçabilité : partagée par tous les acteurs de la chaîne (agriculteur, collecteur, transporteur…)
+  const traceSection = (
+    <div>
+      {collapsed ? <div className="mx-auto mb-3 h-px w-6 bg-border" aria-hidden="true" /> : <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">Supply chain</p>}
+      <ul className="flex flex-col gap-0.5">
+        <li>
+          <NavItem
+            to={TRACE_PAGE.path}
+            label={TRACE_PAGE.name}
+            active={pathname.startsWith(TRACE_PAGE.path)}
+            onNavigate={onNavigate}
+            layoutId={layoutId}
+            accent={toneHex[TRACE_PAGE.tone]}
+            collapsed={collapsed}
+            icon={<ModuleIcon icon={TRACE_PAGE.icon} tone={TRACE_PAGE.tone} size="sm" />}
+          />
+        </li>
+      </ul>
+    </div>
+  )
+
+  // Client et livreur : seulement les pages du marché (les outils agricoles ne les concernent pas)
+  if (role !== 'agriculteur')
+    return (
+      <nav aria-label={t('nav.main')} className="flex flex-col gap-6">
+        <div>
+          {collapsed ? <div className="mx-auto mb-3 h-px w-6 bg-border" aria-hidden="true" /> : <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">{role === 'client' ? 'Achats' : 'Tournée'}</p>}
+          {marketList}
+        </div>
+        {traceSection}
+      </nav>
+    )
 
   return (
     <nav aria-label={t('nav.main')} className="flex flex-col gap-6">
@@ -68,6 +122,13 @@ export function NavLinks({
           ))}
         </ul>
       </div>
+
+      <div>
+        {collapsed ? <div className="mx-auto mb-3 h-px w-6 bg-border" aria-hidden="true" /> : <p className="px-3 pb-2 text-xs font-medium text-muted-foreground">Vente directe</p>}
+        {marketList}
+      </div>
+
+      {traceSection}
     </nav>
   )
 }

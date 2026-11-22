@@ -200,10 +200,22 @@ async function seedMeters() {
   console.log('✔ 2 compteurs AquaScan (avec une fuite récente sur « Compteur maison »)')
 }
 
+/** Marché : un compte client de démo. Aucun produit ni commande : les agriculteurs mettent en vente eux-mêmes,
+ *  et les livreurs créent leur compte depuis l'inscription. */
+async function seedMarket() {
+  await prisma.user.upsert({
+    where: { email: 'client@econexus.app' },
+    create: { id: 'demo-client', email: 'client@econexus.app', passwordHash: await new PasswordHasher().hash('Demo2026!'), name: 'Amira Client', role: 'client', phone: '+216 20 123 456', placeName: 'Sfax' },
+    update: { role: 'client' },
+  })
+  console.log('✔ compte client de démo : client@econexus.app')
+}
+
 main()
   .then(seedPlant)
   .then(seedIrrigation)
   .then(seedMeters)
+  .then(seedMarket)
   .catch((e) => {
     console.error(e)
     process.exit(1)

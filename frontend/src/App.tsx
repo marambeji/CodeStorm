@@ -1,10 +1,10 @@
-import { lazy } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { lazy, type ReactNode } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/app-layout'
 import { AssistantWidget } from '@/components/assistant/assistant-widget'
 import { CommandPalette } from '@/components/command-palette'
 import { MarketingLayout } from '@/components/layout/marketing-layout'
-import { RequireAuth } from '@/features/auth/auth'
+import { homePath, RequireAuth, RequireRole, useRole } from '@/features/auth/auth'
 import { authToken } from '@/lib/api'
 
 // Chaque page est chargée à la demande (code splitting) : le premier affichage reste rapide,
@@ -16,8 +16,22 @@ const IrriPlanPage = lazy(() => import('@/pages/irriplan'))
 const AquaScanPage = lazy(() => import('@/pages/aquascan'))
 const TerraCalcListPage = lazy(() => import('@/pages/terracalc-list'))
 const TerraCalcEditorPage = lazy(() => import('@/pages/terracalc-editor'))
+const MarketPage = lazy(() => import('@/pages/market'))
+const OrdersPage = lazy(() => import('@/pages/orders'))
+const ShopPage = lazy(() => import('@/pages/shop'))
+const DeliveriesPage = lazy(() => import('@/pages/deliveries'))
+const TraceabilityPage = lazy(() => import('@/pages/traceability'))
+const TracePublicPage = lazy(() => import('@/pages/trace-public'))
 const NotFoundPage = lazy(() => import('@/pages/not-found'))
 const LoginPage = lazy(() => import('@/pages/login'))
+
+const Farmer = ({ children }: { children: ReactNode }) => <RequireRole roles={['agriculteur']}>{children}</RequireRole>
+
+/** /app : tableau de bord pour l'agriculteur, marché pour le client, livraisons pour le livreur */
+function RoleHome() {
+  const role = useRole()
+  return role === 'agriculteur' ? <DashboardPage /> : <Navigate to={homePath(role)} replace />
+}
 
 export default function App() {
   const { pathname } = useLocation()
@@ -27,6 +41,9 @@ export default function App() {
     <Routes>
       <Route element={<MarketingLayout />}>
         <Route index element={<LandingPage />} />
+        {/* Module consommateur : page publique du QR code (sans compte) */}
+        <Route path="trace" element={<TracePublicPage />} />
+        <Route path="trace/:code" element={<TracePublicPage />} />
       </Route>
 
       <Route path="connexion" element={<LoginPage />} />
@@ -39,13 +56,21 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<DashboardPage />} />
-        <Route path="plantdoc" element={<PlantDocPage />} />
-        <Route path="terracalc" element={<TerraCalcListPage />} />
-        <Route path="terracalc/nouveau" element={<TerraCalcEditorPage />} />
-        <Route path="terracalc/:id" element={<TerraCalcEditorPage />} />
-        <Route path="irriplan" element={<IrriPlanPage />} />
-        <Route path="aquascan" element={<AquaScanPage />} />
+        <Route index element={<RoleHome />} />
+        {/* Outils de l'agriculteur */}
+        <Route path="plantdoc" element={<Farmer><PlantDocPage /></Farmer>} />
+        <Route path="terracalc" element={<Farmer><TerraCalcListPage /></Farmer>} />
+        <Route path="terracalc/nouveau" element={<Farmer><TerraCalcEditorPage /></Farmer>} />
+        <Route path="terracalc/:id" element={<Farmer><TerraCalcEditorPage /></Farmer>} />
+        <Route path="irriplan" element={<Farmer><IrriPlanPage /></Farmer>} />
+        <Route path="aquascan" element={<Farmer><AquaScanPage /></Farmer>} />
+        {/* Marché : chaque rôle a ses pages */}
+        <Route path="boutique" element={<Farmer><ShopPage /></Farmer>} />
+        <Route path="marche" element={<RequireRole roles={['client']}><MarketPage /></RequireRole>} />
+        <Route path="commandes" element={<RequireRole roles={['client']}><OrdersPage /></RequireRole>} />
+        {/* Traçabilité : tous les acteurs de la chaîne */}
+        <Route path="tracabilite" element={<TraceabilityPage />} />
+        <Route path="livraisons" element={<RequireRole roles={['livreur']}><DeliveriesPage /></RequireRole>} />
       </Route>
 
       <Route path="*" element={<NotFoundPage />} />

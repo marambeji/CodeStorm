@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { LANGS } from '@/i18n/locales'
 import { api } from '@/lib/api'
 import { onAppEvent, openAssistant } from '@/lib/events'
-import { MODULES, toneHex } from '@/lib/modules'
+import { useRole } from '@/features/auth/auth'
+import { marketPagesFor, MODULES, toneHex } from '@/lib/modules'
 
 interface SearchData {
   diagnoses: { id: string; disease: string; parcel: string }[]
@@ -26,6 +27,8 @@ export function CommandPalette() {
   const navigate = useNavigate()
   const { resolvedTheme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
+  const role = useRole()
+  const farmer = role === 'agriculteur'
 
   // Raccourci clavier + ouverture depuis un bouton (événement global)
   useEffect(() => {
@@ -46,7 +49,7 @@ export function CommandPalette() {
   // Les données ne sont chargées qu'à l'ouverture de la palette
   const data = useQuery({
     queryKey: ['palette-search'],
-    enabled: open,
+    enabled: open && farmer,
     staleTime: 30_000,
     queryFn: async (): Promise<SearchData> => {
       const [diagnoses, plans, terrains] = await Promise.all([
@@ -78,10 +81,17 @@ export function CommandPalette() {
             <Command.Empty className="py-10 text-center text-sm text-muted-foreground">{t('search.empty')}</Command.Empty>
 
             <Command.Group heading={t('search.pages')}>
-              <Item icon={<LayoutDashboard />} onSelect={run(() => navigate('/app'))}>
-                {t('nav.overview')}
-              </Item>
-              {MODULES.map((m) => (
+              {farmer && (
+                <Item icon={<LayoutDashboard />} onSelect={run(() => navigate('/app'))}>
+                  {t('nav.overview')}
+                </Item>
+              )}
+              {marketPagesFor(role).map((p) => (
+                <Item key={p.id} icon={<p.icon style={{ color: toneHex[p.tone] }} />} onSelect={run(() => navigate(p.path))} keywords={[p.tagline, 'marché', 'vente', 'commande']}>
+                  {p.name}
+                </Item>
+              ))}
+              {farmer && MODULES.map((m) => (
                 <Item key={m.id} icon={<m.icon style={{ color: toneHex[m.tone] }} />} onSelect={run(() => navigate(m.path))} keywords={[t(`modules.${m.id}.tagline`)]}>
                   {m.name}
                   <span className="ms-2 truncate text-xs text-muted-foreground">{t(`themes.${m.theme}`)}</span>
@@ -93,6 +103,7 @@ export function CommandPalette() {
               <Item icon={<Bot />} onSelect={run(openAssistant)}>
                 {t('search.openAssistant')}
               </Item>
+              {farmer && (<>
               <Item icon={<Camera />} onSelect={run(() => navigate('/app/plantdoc'))}>
                 {t('search.newDiagnosis')}
               </Item>
@@ -105,6 +116,7 @@ export function CommandPalette() {
               <Item icon={<Gauge />} onSelect={run(() => navigate('/app/aquascan'))}>
                 {t('search.newReading')}
               </Item>
+              </>)}
               <Item icon={<MoonStar />} onSelect={run(() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'))}>
                 {t('search.toggleTheme')}
               </Item>

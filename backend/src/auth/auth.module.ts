@@ -1,4 +1,4 @@
-import { Body, ConflictException, Controller, Get, Global, HttpCode, Injectable, Module, Post, Put, UnauthorizedException } from '@nestjs/common'
+import { Body, ConflictException, Controller, ForbiddenException, Get, Global, HttpCode, Injectable, Module, Post, Put, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import {
   AuthenticationContext,
@@ -12,15 +12,20 @@ import {
   type JwtClaims,
 } from '@nestjs/authentication'
 import { Transform } from 'class-transformer'
-import { IsEmail, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator'
+import { IsEmail, IsIn, IsNumber, IsOptional, IsString, Length, Matches, Max, MaxLength, Min } from 'class-validator'
 import { Prisma } from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
+
+export const ROLES = ['agriculteur', 'client', 'livreur'] as const
+export type Role = (typeof ROLES)[number]
 
 /** Utilisateur connecté, sans le hash du mot de passe (il ne sort jamais du dépôt) */
 export interface AuthUser {
   id: string
   email: string
   name: string
+  role: Role
+  phone: string | null
   farmName: string | null
   placeName: string | null
   lat: number | null
@@ -37,7 +42,7 @@ declare module '@nestjs/authentication' {
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value)
 const lower = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value)
-const PUBLIC_FIELDS = { id: true, email: true, name: true, farmName: true, placeName: true, lat: true, lng: true, createdAt: true } as const
+const PUBLIC_FIELDS = { id: true, email: true, name: true, role: true, phone: true, farmName: true, placeName: true, lat: true, lng: true, createdAt: true } as const
 
 // ─────────────────────────────── DTO ───────────────────────────────
 
@@ -71,6 +76,15 @@ export class RegisterDto {
   @IsString()
   @Length(0, 60)
   farmName?: string
+
+  @IsOptional()
+  @IsIn(ROLES, { message: 'Rôle invalide : agriculteur, client ou livreur.' })
+  role?: Role
+
+  @IsOptional()
+  @Transform(trim)
+  @Matches(/^[+\d][\d\s.-]{5,19}$/, { message: 'Numéro de téléphone invalide.' })
+  phone?: string
 }
 
 export class ProfileDto {
@@ -90,6 +104,11 @@ export class ProfileDto {
   @IsString()
   @Length(0, 80)
   placeName?: string | null
+
+  @IsOptional()
+  @Transform(trim)
+  @Matches(/^$|^[+\d][\d\s.-]{5,19}$/, { message: 'Numéro de téléphone invalide.' })
+  phone?: string | null
 
   @IsOptional()
   @IsNumber()
@@ -113,16 +132,23 @@ export class UsersService {
     private readonly hasher: PasswordHasher,
   ) {}
 
-  findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id }, select: PUBLIC_FIELDS })
+  async findById(id: string): Promise<AuthUser | null> {
+    return (await this.prisma.user.findUnique({ where: { id }, select: PUBLIC_FIELDS })) as AuthUser | null
   }
 
   async register(dto: RegisterDto) {
     try {
       return await this.prisma.user.create({
-        data: { email: dto.email, name: dto.name, farmName: dto.farmName || null, passwordHash: await this.hasher.hash(dto.password) },
+        data: {
+          email: dto.email,
+          name: dto.name,
+          role: dto.role ?? 'agriculteur',
+          phone: dto.phone || null,
+          farmName: (dto.role ?? 'agriculteur') === 'agriculteur' ? dto.farmName || null : null,
+          passwordHash: await this.hasher.hash(dto.password),
+        },
         select: PUBLIC_FIELDS,
-      })
+      }) as AuthUser
     } catch (e) {
       // Contrainte d'unicité : pas de recherche préalable (elle laisserait passer deux inscriptions simultanées)
       if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') throw new ConflictException('Un compte existe déjà avec cette adresse e-mail.')
@@ -141,12 +167,13 @@ export class UsersService {
     return this.findById(found.id)
   }
 
-  updateProfile(id: string, dto: ProfileDto) {
-    return this.prisma.user.update({
+  async updateProfile(id: string, dto: ProfileDto) {
+    return (await this.prisma.user.update({
       where: { id },
-      data: { name: dto.name, farmName: dto.farmName || null, placeName: dto.placeName || null, lat: dto.lat ?? null, lng: dto.lng ?? null },
+      // Le rôle ne change jamais ici : il est choisi à l'inscription
+      data: { name: dto.name, farmName: dto.farmName || null, placeName: dto.placeName || null, lat: dto.lat ?? null, lng: dto.lng ?? null, ...(dto.phone !== undefined ? { phone: dto.phone || null } : {}) },
       select: PUBLIC_FIELDS,
-    })
+    })) as AuthUser
   }
 }
 
@@ -166,7 +193,7 @@ export class JwtAuth extends JwtBearerProvider<AuthUser> {
   }
 }
 
-/** Identifiant de l'agriculteur connecté, pour filtrer ses données dans tous les services */
+/** Identifiant de l'utilisateur connecté, pour filtrer ses données dans tous les services */
 @Injectable()
 export class CurrentUserId {
   constructor(private readonly context: AuthenticationContext) {}
@@ -174,6 +201,23 @@ export class CurrentUserId {
   get(): string {
     return this.context.requireUser().id
   }
+
+  user(): AuthUser {
+    return this.context.requireUser()
+  }
+
+  /** L'utilisateur connecté, s'il a l'un des rôles demandés (sinon 403) */
+  requireRole(...roles: Role[]): AuthUser {
+    const user = this.context.requireUser()
+    if (!roles.includes(user.role)) throw new ForbiddenException(ROLE_DENIED[roles[0]])
+    return user
+  }
+}
+
+const ROLE_DENIED: Record<Role, string> = {
+  agriculteur: 'Réservé aux comptes agriculteur.',
+  client: 'Réservé aux comptes client.',
+  livreur: 'Réservé aux comptes livreur.',
 }
 
 // ─────────────────────────────── Contrôleur ───────────────────────────────

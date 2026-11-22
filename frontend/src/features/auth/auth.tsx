@@ -2,12 +2,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { useEffect, type ReactNode } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { cartStore } from '@/features/market/api'
 import { api, authToken } from '@/lib/api'
+
+export type Role = 'agriculteur' | 'client' | 'livreur'
 
 export interface User {
   id: string
   email: string
   name: string
+  role: Role
+  phone: string | null
   farmName: string | null
   placeName: string | null
   lat: number | null
@@ -42,7 +47,7 @@ export function useAuthActions() {
     async login(email: string, password: string) {
       start((await api.post<AuthResponse>('/auth/login', { email, password })).data)
     },
-    async register(input: { name: string; email: string; password: string; farmName?: string }) {
+    async register(input: { name: string; email: string; password: string; farmName?: string; role: Role; phone?: string }) {
       start((await api.post<AuthResponse>('/auth/register', input)).data)
     },
     logout() {
@@ -55,11 +60,30 @@ export function useAuthActions() {
 }
 
 function resetAssistant() {
+  cartStore.clear() // le panier appartient au compte qui l'a rempli
   try {
     sessionStorage.removeItem('assistant-conversation-v2')
   } catch {
     /* rien */
   }
+}
+
+/** Rôle de l'utilisateur connecté (agriculteur par défaut, pendant le chargement) */
+export function useRole(): Role {
+  return useMe().data?.role ?? 'agriculteur'
+}
+
+/** Page réservée à certains rôles : les autres reviennent à leur page d'accueil */
+export function RequireRole({ roles, children }: { roles: Role[]; children: ReactNode }) {
+  const me = useMe()
+  if (!me.data) return null
+  if (!roles.includes(me.data.role)) return <Navigate to={homePath(me.data.role)} replace />
+  return <>{children}</>
+}
+
+/** Page d'accueil de chaque rôle */
+export function homePath(role: Role) {
+  return role === 'client' ? '/app/marche' : role === 'livreur' ? '/app/livraisons' : '/app'
 }
 
 /** Protège l'application : sans connexion, on va à la page de connexion (puis on revient) */

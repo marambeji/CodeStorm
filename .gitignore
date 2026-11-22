@@ -2,6 +2,7 @@
 node_modules/
 dist/
 frontend/out/
+mobile/.expo/
 
 # Secrets et configuration locale (copier .env.example en .env)
 .env

@@ -13,6 +13,7 @@ import { NavLinks } from './nav-links'
 import { UserMenu } from './user-menu'
 import { NotificationBell } from './notification-bell'
 import { openPalette } from '@/lib/events'
+import { useRole } from '@/features/auth/auth'
 
 /** Sidebar fixe et repliable, visible uniquement sur grand écran (≥ 1024px). */
 export function Sidebar() {
@@ -54,13 +55,14 @@ export function Sidebar() {
 /** Recherche (palette Ctrl+K) + centre de notifications */
 function SearchRow({ collapsed }: { collapsed: boolean }) {
   const { t } = useTranslation()
+  const farmer = useRole() === 'agriculteur'
   if (collapsed)
     return (
       <div className="mb-4 flex flex-col items-center gap-1 px-3">
         <Button variant="ghost" size="icon" onClick={openPalette} aria-label={`${t('search.button')} (Ctrl K)`}>
           <Search className="size-[18px]" />
         </Button>
-        <NotificationBell side="right" />
+        {farmer && <NotificationBell side="right" />}
       </div>
     )
   return (
@@ -73,7 +75,7 @@ function SearchRow({ collapsed }: { collapsed: boolean }) {
         <span className="flex-1 truncate text-start">{t('search.button')}</span>
         <kbd className="rounded border px-1.5 text-[0.65rem]">Ctrl K</kbd>
       </button>
-      <NotificationBell side="right" />
+      {farmer && <NotificationBell side="right" />}
     </div>
   )
 }

@@ -21,12 +21,14 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel = 'Supprimer',
+  cancelLabel = 'Annuler',
   onConfirm,
 }: {
   trigger: ReactNode
   title: string
   description: string
   confirmLabel?: string
+  cancelLabel?: string
   onConfirm: () => void | Promise<void>
 }) {
   const [open, setOpen] = useState(false)
@@ -53,7 +55,7 @@ export function ConfirmDialog({
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline" disabled={pending}>
-              Annuler
+              {cancelLabel}
             </Button>
           </DialogClose>
           <Button

@@ -141,20 +141,176 @@ model Terrain {
   @@index([userId])
 }
 
-// ───── Comptes : chaque agriculteur a ses propres données ─────
+// ───── Comptes ─────
+// Trois rôles : "agriculteur" (outils + vente), "client" (achète), "livreur" (livre).
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String
+  role         String   @default("agriculteur") // "agriculteur" | "client" | "livreur"
+  phone        String?
   farmName     String?
   placeName    String?
   lat          Float?
   lng          Float?
+  // Livreur : dernière position GPS partagée pendant une tournée (suivi en direct)
+  liveLat      Float?
+  liveLng      Float?
+  liveAt       DateTime?
   createdAt    DateTime @default(now())
 
   terrains  Terrain[]
   diagnoses PlantDiagnosis[]
   plans     IrrigationPlan[]
   meters    Meter[]
+
+  products         Product[]
+  ordersAsClient   Order[]   @relation("ClientOrders")
+  ordersAsFarmer   Order[]   @relation("FarmerOrders")
+  ordersAsCourier  Order[]   @relation("CourierOrders")
+
+  // Traçabilité (module additif)
+  harvestLots      HarvestLot[] @relation("FarmerLots")
+  traceBlocks      TraceBlock[] @relation("TraceActor")
+}
+
+// ───── Marché : de la ferme au client (agriculteur → livreur → client) ─────
+
+model Product {
+  id          String      @id @default(cuid())
+  farmerId    String
+  farmer      User        @relation(fields: [farmerId], references: [id], onDelete: Cascade)
+  name        String
+  category    String // "legumes" | "fruits" | "cereales" | "huiles" | "dattes" | "miel" | "autres"
+  unit        String // "kg" | "litre" | "piece" | "botte" | "caisse"
+  price       Float // prix par unité
+  stock       Float // quantité disponible, dans l'unité
+  description String?
+  origin      String? // parcelle / lieu de production (traçabilité)
+  harvestDate DateTime? // date de récolte (traçabilité)
+  organic     Boolean     @default(false)
+  photoUrl    String?
+  active      Boolean     @default(true) // retiré de la vente sans être supprimé
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([farmerId])
+  @@index([active, category])
+}
+
+// Une commande = un client + un agriculteur (un panier multi-fermes donne plusieurs commandes).
+// Statuts : en_attente → acceptee → prete → prise_en_charge → en_livraison → livree  (ou refusee / annulee)
+model Order {
+  id           String       @id @default(cuid())
+  reference    String       @unique // ex : "EN-7K3Q9P"
+  clientId     String
+  client       User         @relation("ClientOrders", fields: [clientId], references: [id], onDelete: Cascade)
+  farmerId     String
+  farmer       User         @relation("FarmerOrders", fields: [farmerId], references: [id], onDelete: Cascade)
+  courierId    String?
+  courier      User?        @relation("CourierOrders", fields: [courierId], references: [id], onDelete: SetNull)
+  status       String       @default("en_attente")
+  address      String
+  deliveryLat  Float? // point de livraison choisi sur la carte par le client
+  deliveryLng  Float?
+  pickupLat    Float? // position de la ferme au moment de la commande
+  pickupLng    Float?
+  phone        String
+  note         String?
+  subtotal     Float
+  deliveryFee  Float
+  total        Float
+  deliveryCode String // code à 4 chiffres que le client donne au livreur à la remise
+  items        OrderItem[]
+  events       OrderEvent[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([clientId])
+  @@index([farmerId])
+  @@index([courierId])
+  @@index([status])
+}
+
+// Ligne de commande : nom et prix figés au moment de l'achat
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String
+  unit      String
+  unitPrice Float
+  quantity  Float
+  lineTotal Float
+}
+
+// Journal de traçabilité : chaque étape, qui l'a faite et quand
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  actorRole String
+  actorName String
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+}
+
+// ───── Traçabilité : de la récolte au consommateur (registre chaîné, style blockchain) ─────
+// Module additif : il ne modifie ni le marché ni les comptes. Chaque lot de récolte reçoit un code
+// unique (QR) ; chaque acteur (agriculteur → collecteur → transporteur → distributeur) ajoute un
+// « bloc » signé dont le hash dépend du bloc précédent : toute modification casse la chaîne.
+model HarvestLot {
+  id          String       @id @default(cuid())
+  code        String       @unique // identifiant unique du lot, ex : "LOT-7K3Q9P" (encodé dans le QR)
+  farmerId    String
+  farmer      User         @relation("FarmerLots", fields: [farmerId], references: [id], onDelete: Cascade)
+  product     String // nom du produit récolté
+  category    String // mêmes catégories que le marché
+  variety     String?
+  quantity    Float
+  unit        String
+  parcel      String? // parcelle d'origine
+  placeName   String?
+  lat         Float?
+  lng         Float?
+  harvestDate DateTime
+  organic     Boolean      @default(false)
+  notes       String?
+  certificate String // sceau HMAC du bloc d'origine : certification de l'origine par la plateforme
+  stage       String       @default("recolte") // dernière étape enregistrée
+  blocks      TraceBlock[]
+  createdAt   DateTime     @default(now())
+
+  @@index([farmerId])
+}
+
+model TraceBlock {
+  id          String     @id @default(cuid())
+  lotId       String
+  lot         HarvestLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  index       Int // position dans la chaîne (0 = bloc d'origine)
+  stage       String // "recolte" | "collecte" | "transport" | "stockage" | "distribution" | "vente"
+  actorId     String?
+  actor       User?      @relation("TraceActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorRole   String // rôle dans la chaîne : agriculteur | collecteur | transporteur | distributeur | detaillant
+  actorName   String
+  placeName   String?
+  lat         Float?
+  lng         Float?
+  temperature Float? // °C mesurée à cette étape (sert à prédire la conservation)
+  quantity    Float? // quantité constatée (pertes éventuelles)
+  note        String?
+  prevHash    String
+  hash        String
+  createdAt   DateTime   @default(now())
+
+  @@unique([lotId, index])
+  @@index([actorId])
 }

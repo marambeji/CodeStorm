@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Noise } from '@/components/fx/background-fx'
 import { useModuleAccent } from '@/hooks/use-module-accent'
 import { SIDEBAR_WIDTH, SidebarProvider, useSidebar } from '@/hooks/use-sidebar'
-import { moduleFromPath } from '@/lib/modules'
+import { toneFromPath } from '@/lib/modules'
 import { cn } from '@/lib/utils'
 import { AmbientGlow } from './ambient-glow'
 import { MobileTopbar } from './mobile-topbar'
@@ -27,9 +27,9 @@ export function AppLayout() {
 
 function Shell() {
   const { pathname } = useLocation()
-  const mod = moduleFromPath(pathname)
+  const tone = toneFromPath(pathname)
   const { collapsed } = useSidebar()
-  useModuleAccent(mod?.tone)
+  useModuleAccent(tone)
   // Pages "plein écran" (carte TerraCalc) : pas de marges, toute la hauteur disponible
   const fullBleed = /^\/app\/terracalc\/.+/.test(pathname)
 
@@ -42,7 +42,7 @@ function Shell() {
       <Sidebar />
       <div className="relative isolate min-h-svh transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] lg:ps-[var(--sbw)]">
         <MobileTopbar />
-        <AmbientGlow tone={mod?.tone} />
+        <AmbientGlow tone={tone} />
         <Noise className="fixed" />
         <main
           id="contenu"

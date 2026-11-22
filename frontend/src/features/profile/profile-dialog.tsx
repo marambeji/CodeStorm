@@ -15,6 +15,8 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const save = useSaveProfile()
   const [name, setName] = useState('')
   const [farmName, setFarmName] = useState('')
+  const [phone, setPhone] = useState('')
+  const farmer = (profile.data?.role ?? 'agriculteur') === 'agriculteur'
   const [place, setPlace] = useState<{ name: string; lat: number; lng: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,6 +24,7 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     if (!open || !profile.data) return
     setName(profile.data.name ?? '')
     setFarmName(profile.data.farmName ?? '')
+    setPhone(profile.data.phone ?? '')
     setPlace(profile.data.lat !== null && profile.data.lng !== null ? { name: profile.data.placeName ?? '', lat: profile.data.lat, lng: profile.data.lng } : null)
     setError(null)
   }, [open, profile.data])
@@ -31,7 +34,7 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     setError(null)
     if (name.trim().length < 2) return setError('Indiquez votre nom (2 caractères minimum).')
     try {
-      await save.mutateAsync({ name: name.trim(), farmName: farmName.trim() || undefined, placeName: place?.name, lat: place?.lat ?? null, lng: place?.lng ?? null })
+      await save.mutateAsync({ name: name.trim(), farmName: farmer ? farmName.trim() || undefined : undefined, phone: phone.trim(), placeName: place?.name, lat: place?.lat ?? null, lng: place?.lng ?? null })
       toast.success('Profil enregistré', { description: place ? `Météo et plans d’irrigation calés sur ${place.name}.` : undefined })
       onOpenChange(false)
     } catch (err) {
@@ -44,19 +47,25 @@ export function ProfileDialog({ open, onOpenChange }: { open: boolean; onOpenCha
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Mon profil</DialogTitle>
-          <DialogDescription>Votre lieu sert à la météo, aux plans d’irrigation et aux réponses de l’assistant.</DialogDescription>
+          <DialogDescription>{farmer ? 'Votre lieu sert à la météo, aux plans d’irrigation et aux réponses de l’assistant. Votre téléphone est visible par le livreur.' : 'Votre téléphone permet au livreur et aux fermes de vous joindre.'}</DialogDescription>
         </DialogHeader>
         <form id="profile-form" onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="pf-name">Votre nom</Label>
             <Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex : Salim Ben Ali" maxLength={40} autoComplete="name" />
           </div>
+          {farmer && (
+            <div className="space-y-1.5">
+              <Label htmlFor="pf-farm">Exploitation (facultatif)</Label>
+              <Input id="pf-farm" value={farmName} onChange={(e) => setFarmName(e.target.value)} placeholder="Ex : Ferme des Oliviers" maxLength={60} />
+            </div>
+          )}
           <div className="space-y-1.5">
-            <Label htmlFor="pf-farm">Exploitation (facultatif)</Label>
-            <Input id="pf-farm" value={farmName} onChange={(e) => setFarmName(e.target.value)} placeholder="Ex : Ferme des Oliviers" maxLength={60} />
+            <Label htmlFor="pf-phone">Téléphone (facultatif)</Label>
+            <Input id="pf-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+216 20 123 456" autoComplete="tel" />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="pf-place">Lieu de l’exploitation</Label>
+            <Label htmlFor="pf-place">{farmer ? 'Lieu de l’exploitation' : 'Ville'}</Label>
             <LocationField id="pf-place" value={place} onChange={setPlace} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}

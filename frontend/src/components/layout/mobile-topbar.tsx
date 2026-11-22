@@ -10,11 +10,13 @@ import { NavLinks } from './nav-links'
 import { NotificationBell } from './notification-bell'
 import { openPalette } from '@/lib/events'
 import { SidebarFooter } from './sidebar'
+import { useRole } from '@/features/auth/auth'
 
 /** Barre du haut sur mobile et tablette (< 1024px) avec menu hamburger. */
 export function MobileTopbar() {
   const [open, setOpen] = useState(false)
   const { t, i18n } = useTranslation()
+  const farmer = useRole() === 'agriculteur'
 
   return (
     <header className="glass sticky top-0 z-30 flex h-16 items-center gap-2 border-b px-3 sm:px-5 lg:hidden">
@@ -40,7 +42,7 @@ export function MobileTopbar() {
         <Button variant="ghost" size="icon" className="rounded-full" onClick={openPalette} aria-label={t('search.button')}>
           <Search className="size-[18px]" />
         </Button>
-        <NotificationBell />
+        {farmer && <NotificationBell />}
         <LanguageSwitcher />
         <ThemeToggle />
       </div>
